@@ -3,10 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numpy import shape
 import math
-
-for option in cv2.__dict__:
-    if 'CORREL' in option:
-        print (option)
+import os
 
 def normalize(hist) :
     valmax = np.amax(hist)
@@ -26,16 +23,23 @@ def plot_correlation(corr, show = True):
         plt.draw()
         plt.pause(0.0001)
 
-
-def Image_clef_index(cut_index, nombre_plan, nombre_point_anguleux):
-    image_clef_index = []
+def Image_interest_index(cut_index, nombre_plan, nombre_point_anguleux):
+    image_interest_index = []
     tmp = nombre_point_anguleux[0:cut_index[0]]
-    image_clef_index.append(1 + tmp.index(max(tmp)))
+    image_interest_index.append(1 + tmp.index(max(tmp)))
     for i in range(nombre_plan - 2):
         tmp = nombre_point_anguleux[cut_index[i]:cut_index[i + 1]]
-        image_clef_index.append(1 + tmp.index(max(tmp)) + cut_index[i])
+        image_interest_index.append(1 + tmp.index(max(tmp)) + cut_index[i])
     tmp = nombre_point_anguleux[cut_index[i+1]:]
-    image_clef_index.append(1 + tmp.index(max(tmp)) + cut_index[i+1])
+    image_interest_index.append(1 + tmp.index(max(tmp)) + cut_index[i+1])
+    return image_interest_index
+
+def Image_clef_index(cut_index, nombre_de_trame):
+    image_clef_index = []
+    image_clef_index.append((0+cut_index[0])//2)
+    for i in range(nombre_plan - 2):
+        image_clef_index.append((cut_index[i+1] + cut_index[i]) // 2)
+    image_clef_index.append((cut_index[i + 1] + nombre_de_trame) // 2)
     return image_clef_index
 
 # Paramètres du détecteur de points d'intérêt
@@ -49,8 +53,10 @@ lk_params = dict( winSize  = (15,15),
                   maxLevel = 5,
                   criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
 
+print('Démarrage du programme')
 
-# Découper le plan
+
+# 1) Découper le plan
 cap = cv2.VideoCapture("TP2_Videos/Extrait5-Matrix-Helicopter_Scene(280p).m4v")
 ret, frame = cap.read() # Passe à l'image suivante
 frame1 = frame.copy()
@@ -80,10 +86,13 @@ while(ret):
     ret, frame = cap.read()
     index += 1
 
+nombre_de_trame = index-1
+
 cap.release()
 cv2.destroyAllWindows()
 
-# Obtenir l'image clef index
+
+# 2) Obtenir l'image clef et l'image caractéristique index
 cap = cv2.VideoCapture("TP2_Videos/Extrait5-Matrix-Helicopter_Scene(280p).m4v")
 ret, frame = cap.read() # Passe à l'image suivante
 
@@ -123,27 +132,53 @@ while(ret):
 cap.release()
 cv2.destroyAllWindows()
 
-print("Index decoupage: ", cut_index)
+print("\nIndex decoupage: ", cut_index)
 
 nombre_plan = len(cut_index) + 1 # nombre des plans
-image_clef_index = []
+image_interest_index = []
 print("nombre de plan: ", nombre_plan)
 
-image_clef_index = Image_clef_index(cut_index, nombre_plan, nombre_point_anguleux)
+image_interest_index = Image_interest_index(cut_index, nombre_plan, nombre_point_anguleux)
 
-print("Index image-celf: ", image_clef_index)
+image_clef_index = Image_clef_index(cut_index, nombre_de_trame)
 
-# Sauvegarder l'image clef
+print("\nIndex image-clef: ", image_clef_index)
+print("Index image-caractéristique: ", image_interest_index)
+
+
+
+# 3) Sauvegarder l'image clef
 cap = cv2.VideoCapture("TP2_Videos/Extrait5-Matrix-Helicopter_Scene(280p).m4v")
 ret, frame = cap.read() # Passe à l'image suivante
 index = 1
 plan_index = 0
 
+img_file = 'Image-clef'
+os.makedirs(img_file,exist_ok=True)
 while(ret and plan_index < nombre_plan):
     if index == image_clef_index[plan_index]:
-        cv2.imwrite('%d.png' %index, frame)
+        cv2.imwrite(img_file + "/" + 'Q5_image_clef_plan%d.png' %(plan_index+1), frame)
         plan_index += 1
     ret, frame = cap.read()
     index += 1
+cap.release()
+cv2.destroyAllWindows()
 
-print('Toutes les images-clefs sont sauvegardées !!!')
+cap = cv2.VideoCapture("TP2_Videos/Extrait5-Matrix-Helicopter_Scene(280p).m4v")
+ret, frame = cap.read() # Passe à l'image suivante
+
+index = 1
+plan_index = 0
+
+img_file = 'Image-caracteristique'
+os.makedirs(img_file , exist_ok=True)
+while (ret and plan_index < nombre_plan):
+    if index == image_interest_index[plan_index]:
+        cv2.imwrite(img_file + "/" + 'Q5_image_caracteristique_plan%d.png' %(plan_index+1), frame)
+        plan_index += 1
+    ret, frame = cap.read()
+    index += 1
+cap.release()
+cv2.destroyAllWindows()
+
+print('\nToutes les images-clefs sont sauvegardées !!!')
